@@ -1,0 +1,30 @@
+datasource db {
+  provider = "postgresql"
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Room {
+  id        String   @id @default(uuid())
+  name      String   // e.g., "Tokyo Hub", "Miami Closet"
+  location  String
+  createdAt DateTime @default(now())
+  items     Item[]
+}
+
+model Item {
+  id           String   @id @default(uuid())
+  brand        String
+  model        String
+  condition    String   
+  status       String   @default("STOCKED") 
+  assignedTo   String?  
+  specs        Json     
+  serialLast5  String   
+  createdAt    DateTime @default(now())
+  
+  roomId       String
+  room         Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
+}

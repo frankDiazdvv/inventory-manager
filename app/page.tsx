@@ -1,64 +1,309 @@
-import Image from "next/image";
+// src/app/page.tsx
+import { db } from '@/lib/db';
+import { revalidatePath } from 'next/cache';
+import { CollapsibleTable } from '@/components/CollapsibleTable';
+import { DeleteRoomButton } from '@/components/DeleteRoom';
+import { RoomHeader } from '@/components/RoomHeader';
+import { ExcelUploader } from '@/components/ExcelUploader';
 
-export default function Home() {
+interface PageProps {
+  searchParams: Promise<{ 
+    room?: string; 
+    search?: string; 
+    sortBy?: string; 
+    order?: 'asc' | 'desc' 
+  }>;
+}
+
+// --- SERVER ACTIONS ---
+async function createRoom(formData: FormData) {
+  'use server';
+  const name = formData.get('name') as string;
+  const location = formData.get('location') as string;
+  if (!name || !location) return;
+
+  await db.room.create({ data: { name, location } });
+  revalidatePath('/');
+}
+
+async function deleteRoom(roomId: string) {
+  'use server';
+  if (!roomId) return;
+  try {
+    await db.room.delete({ where: { id: roomId } });
+    revalidatePath('/');
+  } catch (error) {
+    console.error("Failed to delete room:", error);
+  }
+}
+
+async function deleteItem(itemId: string) {
+  'use server';
+  try {
+    await db.item.delete({ where: { id: itemId } });
+    revalidatePath('/');
+  } catch (error) {
+    console.error("Failed to delete item:", error);
+  }
+}
+
+async function updateItemStatus(itemId: string, newStatus: string, assignedTo?: string) {
+  'use server';
+  try {
+    await db.item.update({
+      where: { id: itemId },
+      data: { 
+        status: newStatus,
+        assignedTo: newStatus === 'FLOOR' ? assignedTo || null : null
+      }
+    });
+    revalidatePath('/');
+  } catch (error) {
+    console.error("Failed to update item status:", error);
+  }
+}
+
+async function createItem(formData: FormData) {
+  'use server';
+  const brand = formData.get('brand') as string;
+  const model = formData.get('model') as string;
+  const condition = formData.get('condition') as string;
+  const serialLast5 = formData.get('serialLast5') as string;
+  const roomId = formData.get('roomId') as string;
+  const notes = formData.get('notes') as string; // Read notes value
+
+  if (!brand || !model || !roomId) return;
+
+  await db.item.create({
+    data: {
+      brand,
+      model,
+      condition,
+      serialLast5,
+      roomId,
+      status: 'STOCKED',
+      // Saving cleanly into the flexible Postgres JSONB object block
+      specs: { notes: notes || 'N/A' },
+    },
+  });
+  revalidatePath('/');
+}
+
+async function updateItemCondition(itemId: string, newCondition: string) {
+  'use server';
+  try {
+    await db.item.update({
+      where: { id: itemId },
+      data: { condition: newCondition }
+    });
+    revalidatePath('/');
+  } catch (error) {
+    console.error("Failed to update item condition:", error);
+  }
+}
+
+async function uploadBulkItems(roomId: string, rawItems: any[]) {
+  'use server';
+  if (!roomId || !rawItems || rawItems.length === 0) return;
+
+  try {
+    const sanitizedData = rawItems.map((row) => ({
+      brand: String(row.Brand || row.brand || '').trim(),
+      model: String(row.Model || row.model || '').trim(),
+      condition: String(row.Condition || row.condition || 'Excellent').trim(),
+      serialLast5: String(row.Serial || row.serial || '').trim().slice(0, 5),
+      status: 'STOCKED',
+      roomId: roomId,
+      // Fallback fallback configurations: matches 'Notes', 'notes', 'CPU', or 'cpu' headers
+      specs: { notes: row.Notes || row.notes || row.CPU || row.cpu || 'N/A' },
+    })).filter(item => item.brand && item.model && item.serialLast5);
+
+    if (sanitizedData.length === 0) return;
+
+    await db.item.createMany({
+      data: sanitizedData,
+      skipDuplicates: true,
+    });
+
+    revalidatePath('/');
+  } catch (error) {
+    console.error("Failed to execute bulk asset upload:", error);
+  }
+}
+
+export default async function InventoryDashboard({ searchParams }: PageProps) {
+  const resolvedParams = await searchParams;
+  const activeRoomId = resolvedParams.room || '';
+  const searchQuery = resolvedParams.search || '';
+  const sortBy = resolvedParams.sortBy || 'createdAt';
+  const order = resolvedParams.order || 'desc';
+
+  const rooms = await db.room.findMany({ orderBy: { name: 'asc' } });
+  const currentRoomId = activeRoomId || rooms[0]?.id;
+
+  const allItems = currentRoomId
+    ? await db.item.findMany({
+        where: {
+          roomId: currentRoomId,
+          OR: searchQuery
+            ? [
+                { brand: { contains: searchQuery, mode: 'insensitive' } },
+                { model: { contains: searchQuery, mode: 'insensitive' } },
+                { serialLast5: { contains: searchQuery, mode: 'insensitive' } },
+              ]
+            : undefined,
+        },
+        orderBy: { [sortBy]: order },
+      })
+    : [];
+
+  const stockedItems = allItems.filter(i => i.status === 'STOCKED' || !i.status);
+  const floorItems = allItems.filter(i => i.status === 'FLOOR');
+  const recycleItems = allItems.filter(i => i.status === 'RECYCLE');
+
+  const currentRoom = rooms.find((r: any) => r.id === currentRoomId);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="flex h-screen bg-slate-50 text-slate-900">
+      {/* SIDEBAR */}
+      <aside className="w-72 bg-slate-900 text-white p-6 flex flex-col justify-between">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight mb-8">📦 DoorLoop Inventory</h1>
+          <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Select Room</h2>
+          <div className="space-y-1">
+            {rooms.map((room: any) => (
+              <a
+                key={room.id}
+                href={`/?room=${room.id}`}
+                className={`block px-3 py-2 rounded-md text-sm transition-colors ${
+                  currentRoomId === room.id ? 'bg-blue-600 text-white font-medium' : 'text-slate-300 hover:bg-slate-800'
+                }`}
+              >
+                {room.name} <span className="text-xs opacity-60">({room.location})</span>
+              </a>
+            ))}
+            {rooms.length === 0 && <p className="text-sm text-slate-500 italic p-2">No rooms created yet.</p>}
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+
+        <form action={createRoom} className="border-t border-slate-800 pt-4 mt-4 space-y-2">
+          <h3 className="text-xs font-semibold text-slate-400 uppercase">Create New Room</h3>
+          <input type="text" name="name" placeholder="Room Name (e.g. Tokyo)" className="w-full text-xs p-2 bg-slate-800 rounded border border-slate-700 text-white" required />
+          <input type="text" name="location" placeholder="Country / City" className="w-full text-xs p-2 bg-slate-800 rounded border border-slate-700 text-white" required />
+          <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-xs py-2 rounded font-medium">Add Room</button>
+        </form>
+      </aside>
+
+      {/* MAIN LAYOUT AREA */}
+      <main className="flex-1 p-8 overflow-y-auto">
+        {rooms.length === 0 ? (
+          <div className="text-center py-20 bg-white rounded-xl shadow-sm border">
+            <h2 className="text-xl font-medium text-slate-600">Welcome! Begin by adding your first Room in the sidebar.</h2>
+          </div>
+        ) : (
+          <>
+            <RoomHeader 
+              roomName={currentRoom?.name || 'Inventory'} 
+              currentRoomId={currentRoomId} 
+              deleteRoomAction={deleteRoom} 
+              stockedItems={stockedItems}
+              floorItems={floorItems}
+              recycleItems={recycleItems}
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+
+            <div className="grid grid-cols-3 gap-8 items-start">
+              <div className="col-span-2 space-y-8">
+                <CollapsibleTable 
+                  title="Stocked Items"
+                  items={stockedItems}
+                  statusContext="STOCKED"
+                  currentRoomId={currentRoomId}
+                  searchQuery={searchQuery}
+                  sortBy={sortBy}
+                  order={order}
+                  updateItemStatus={updateItemStatus}
+                  updateItemCondition={updateItemCondition}
+                  deleteItem={deleteItem}
+                />
+
+                <CollapsibleTable 
+                  title="Items in Floor"
+                  items={floorItems}
+                  statusContext="FLOOR"
+                  currentRoomId={currentRoomId}
+                  searchQuery={searchQuery}
+                  sortBy={sortBy}
+                  order={order}
+                  updateItemStatus={updateItemStatus}
+                  updateItemCondition={updateItemCondition}
+                  deleteItem={deleteItem}
+                />
+
+                <CollapsibleTable 
+                  title="Items to Recycle"
+                  items={recycleItems}
+                  statusContext="RECYCLE"
+                  currentRoomId={currentRoomId}
+                  searchQuery={searchQuery}
+                  sortBy={sortBy}
+                  order={order}
+                  updateItemStatus={updateItemStatus}
+                  updateItemCondition={updateItemCondition}
+                  deleteItem={deleteItem}
+                />
+              </div>
+
+              {/* RIGHT SIDEBAR */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border h-fit sticky top-0">
+                <h3 className="font-semibold mb-4">Log New Asset</h3>
+                <form action={createItem} className="space-y-4 text-sm">
+                  <input type="hidden" name="roomId" value={currentRoomId} />
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Brand</label>
+                    <input type="text" name="brand" placeholder="e.g. Apple, Dell" className="w-full p-2 border rounded" required />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Model</label>
+                    <input type="text" name="model" placeholder="e.g. MacBook Pro M3" className="w-full p-2 border rounded" required />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Condition</label>
+                      <select name="condition" className="w-full p-2 border rounded bg-white">
+                        <option value="Excellent">Excellent</option>
+                        <option value="Good">Good</option>
+                        <option value="Fair">Fair</option>
+                        <option value="Bad">Bad</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-xs font-medium text-slate-500 mb-1">Serial (Last 5)</label>
+                      <input type="text" name="serialLast5" maxLength={5} placeholder="A1B2C" className="w-full p-2 border rounded font-mono" required />
+                    </div>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-xs font-medium text-slate-500 mb-1">Asset Notes / Comments</label>
+                    <input 
+                      type="text" 
+                      name="notes" 
+                      placeholder="e.g. Asset deployed on loan, battery swapped" 
+                      className="w-full p-2 border rounded text-xs" 
+                    />
+                  </div>
+                  
+                  <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded font-medium mt-2">
+                    Save to Database
+                  </button>
+                </form>
+                <ExcelUploader 
+                  roomId={currentRoomId} 
+                  onUploadSuccess={uploadBulkItems} 
+                />
+              </div>
+            </div>
+          </>
+        )}
       </main>
     </div>
   );
