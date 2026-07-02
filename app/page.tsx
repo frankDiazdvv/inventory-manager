@@ -2,7 +2,6 @@
 import { db } from '@/lib/db';
 import { revalidatePath } from 'next/cache';
 import { CollapsibleTable } from '@/components/CollapsibleTable';
-import { DeleteRoomButton } from '@/components/DeleteRoom';
 import { RoomHeader } from '@/components/RoomHeader';
 import { ExcelUploader } from '@/components/ExcelUploader';
 
