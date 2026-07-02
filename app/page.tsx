@@ -157,9 +157,9 @@ export default async function InventoryDashboard({ searchParams }: PageProps) {
       })
     : [];
 
-  const stockedItems = allItems.filter(i => i.status === 'STOCKED' || !i.status);
-  const floorItems = allItems.filter(i => i.status === 'FLOOR');
-  const recycleItems = allItems.filter(i => i.status === 'RECYCLE');
+  const stockedItems = allItems.filter((i: any) => i.status === 'STOCKED' || !i.status);
+  const floorItems = allItems.filter((i: any) => i.status === 'FLOOR');
+  const recycleItems = allItems.filter((i: any) => i.status === 'RECYCLE');
 
   const currentRoom = rooms.find((r: any) => r.id === currentRoomId);
 
