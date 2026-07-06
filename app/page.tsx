@@ -149,6 +149,8 @@ export default async function InventoryDashboard({ searchParams }: PageProps) {
                 { brand: { contains: searchQuery, mode: 'insensitive' } },
                 { model: { contains: searchQuery, mode: 'insensitive' } },
                 { serialLast5: { contains: searchQuery, mode: 'insensitive' } },
+                { condition: { contains: searchQuery, mode: 'insensitive' } },
+                { assignedTo: { contains: searchQuery, mode: 'insensitive' } },
               ]
             : undefined,
         },
@@ -209,7 +211,46 @@ export default async function InventoryDashboard({ searchParams }: PageProps) {
               floorItems={floorItems}
               recycleItems={recycleItems}
             />
+            {/* Search Bar */}
+            <div className="mb-6">
+              <form method="GET" className="flex items-center gap-2 max-w-xl">
+                {/* Hidden inputs ensure we maintain our active room scope when applying filters */}
+                <input type="hidden" name="room" value={currentRoomId} />
+                {/* Maintain sorting fields structure if any is active */}
+                {resolvedParams.sortBy && <input type="hidden" name="sortBy" value={resolvedParams.sortBy} />}
+                {resolvedParams.order && <input type="hidden" name="order" value={resolvedParams.order} />}
+                
+                <div className="relative flex-1">
+                  <span className="absolute inset-y-0 left-3 flex items-center text-slate-400 pointer-events-none select-none">
+                    🔍
+                  </span>
+                  <input 
+                    type="text" 
+                    name="search"
+                    defaultValue={searchQuery}
+                    placeholder="Search brand, model, serial, condition, or user..." 
+                    className="w-full h-10 pl-9 pr-4 text-sm bg-white border border-slate-200 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all text-slate-800"
+                  />
+                </div>
+                
+                <button 
+                  type="submit" 
+                  className="h-10 px-4 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl shadow-sm cursor-pointer transition-colors"
+                >
+                  Search
+                </button>
 
+                {searchQuery && (
+                  <a 
+                    href={`/?room=${currentRoomId}`}
+                    className="h-10 px-3 flex items-center justify-center border bg-white hover:bg-slate-50 text-slate-500 text-xs font-medium rounded-xl transition-colors"
+                    title="Clear Search Filter"
+                  >
+                    Clear
+                  </a>
+                )}
+              </form>
+            </div>
             <div className="grid grid-cols-3 gap-8 items-start">
               <div className="col-span-2 space-y-8">
                 <CollapsibleTable 
