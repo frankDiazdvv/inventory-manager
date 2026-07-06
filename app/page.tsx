@@ -169,7 +169,11 @@ export default async function InventoryDashboard({ searchParams }: PageProps) {
       {/* SIDEBAR */}
       <aside className="w-72 bg-slate-900 text-white p-6 flex flex-col justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight mb-8">📦 DoorLoop Inventory</h1>
+          <div className='flex flex-row justify-center items-center mb-8'>
+              <img src="/dl-inv-logo.png" alt="DoorLoop Inventory Logo" className='w-12 h-12'/>
+              <h1 className="text-xl font-bold tracking-tight">DoorLoop Inventory</h1>
+          </div>
+          
           <h2 className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Select Room</h2>
           <div className="space-y-1">
             {rooms.map((room: any) => (
