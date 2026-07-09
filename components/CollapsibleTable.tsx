@@ -167,29 +167,32 @@ export function CollapsibleTable({
                     {statusContext !== 'STOCKED' && (
                       <button 
                         onClick={() => handleStatusTransition(item, 'STOCKED')}
-                        className="bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs px-2 py-1 rounded font-medium cursor-pointer transition-colors"
+                        title="Move to Storage Room"
+                        className="hover:bg-slate-200 text-slate-700 text-lg px-1 py-0.5 rounded font-medium align-middle cursor-pointer transition-colors"
                       >
-                        📦 Stock
+                        📦
                       </button>
                     )}
                     {statusContext !== 'FLOOR' && (
                       <button 
                         onClick={() => handleStatusTransition(item, 'FLOOR')}
-                        className="bg-blue-50 hover:bg-blue-100 text-blue-700 text-xs px-2 py-1 rounded font-medium cursor-pointer transition-colors"
+                        title="Assign to User"
+                        className="hover:bg-blue-100 text-blue-700 text-lg px-1 py-0.5 rounded font-medium align-middle cursor-pointer transition-colors"
                       >
-                        🏢 Floor
+                        👤
                       </button>
                     )}
                     {statusContext !== 'RECYCLE' && (
                       <button 
                         onClick={() => handleStatusTransition(item, 'RECYCLE')}
-                        className="bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs px-2 py-1 rounded font-medium cursor-pointer transition-colors"
+                        title="Move to Recycle"
+                        className="hover:bg-amber-100 text-amber-700 text-lg px-1 py-0.5 rounded font-medium align-middle cursor-pointer transition-colors"
                       >
-                        ♻️ Recycle
+                        ♻️
                       </button>
                     )}
                     {statusContext === 'RECYCLE' && (
-                      <div className="inline-block align-middle ml-2">
+                      <div className="inline-block align-middle justify-center">
                         <RemoveItemButton 
                           itemId={item.id} 
                           serialLast5={item.serialLast5} 

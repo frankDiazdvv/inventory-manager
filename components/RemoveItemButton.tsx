@@ -33,13 +33,13 @@ export function RemoveItemButton({ itemId, serialLast5, onConfirmDelete }: Remov
   return (
     <button 
       onClick={handleMoveOut}
-      className="p-2 text-slate-500 hover:text-red-600 hover:bg-slate-100 rounded-full transition-colors focus:outline-none cursor-pointer"
+      className="px-0.5 py-1 text-lg text-slate-500 hover:text-red-600 hover:bg-slate-100 rounded-sm transition-colors focus:outline-none cursor-pointer"
       title="Take Out Item"
     >
       <svg 
         xmlns="http://www.w3.org/2000/svg" 
-        width="18" 
-        height="18" 
+        width="22" 
+        height="22" 
         viewBox="0 0 24 24" 
         fill="none" 
         stroke="currentColor" 
